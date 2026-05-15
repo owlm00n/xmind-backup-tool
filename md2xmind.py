@@ -129,7 +129,7 @@ def restore_xmind_from_single_md(md_file: str, xmind_output: str):
                     zi.compress_type = zipfile.ZIP_DEFLATED
                     zi.external_attr = 0o644 << 16
                 else:
-                    zi.compress_type = zipfile.ZIP_DEFLATED
+                    zi.compress_type = zipfile.ZIP_STORED
                 zf.writestr(zi, content)
 
     print(f"Generated: {xmind_output}")

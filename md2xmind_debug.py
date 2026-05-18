@@ -48,7 +48,7 @@ def parse_single_md(md_file: str) -> list:
         print(f"  first ``` at position: {first}")
 
         lang_end = body.find('\n', first)
-        lang = body[first + 3:lang_end] if lang_end > 0 else ''
+        lang = body[first + 3:lang_end].strip('\r') if lang_end > 0 else ''
         print(f"  lang_end={lang_end}, lang={lang!r}")
 
         code_start = lang_end + 1 if lang_end > 0 else first + 3 + len(lang) + 1
@@ -78,8 +78,19 @@ def parse_single_md(md_file: str) -> list:
                 continue
             print(f"  decoded size: {len(decoded_content)} bytes, md5={hashlib.md5(decoded_content).hexdigest()}")
         else:
-            decoded_content = code.encode('utf-8')
-            print(f"  text size: {len(decoded_content)} bytes, md5={hashlib.md5(decoded_content).hexdigest()}")
+            # Check if this was actually a base64-encoded file that lost its lang
+            # This happens when copy-paste changes \r\n to \n in the code block header
+            if rel_path.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico')):
+                # Likely a binary file - try base64 decode anyway
+                try:
+                    decoded_content = base64.b64decode(code)
+                    print(f"  -> treated as base64 (image path): decoded {len(decoded_content)} bytes, md5={hashlib.md5(decoded_content).hexdigest()}")
+                except Exception:
+                    decoded_content = code.encode('utf-8')
+                    print(f"  -> treated as text (base64 decode failed): {len(decoded_content)} bytes")
+            else:
+                decoded_content = code.encode('utf-8')
+                print(f"  text size: {len(decoded_content)} bytes, md5={hashlib.md5(decoded_content).hexdigest()}")
 
         rel_path = rel_path.replace('\\', '/')
         print(f"  final rel_path: {rel_path}")

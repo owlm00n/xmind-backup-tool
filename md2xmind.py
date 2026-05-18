@@ -37,9 +37,11 @@ def parse_single_md(md_file: str) -> list:
         first = body.find('```')
         if first < 0:
             continue
+        print(f"  first ``` at position: {first}")
 
         lang_end = body.find('\n', first)
-        lang = body[first + 3:lang_end] if lang_end > 0 else ''
+        lang = body[first + 3:lang_end].strip('\r') if lang_end > 0 else ''
+        print(f"  lang_end={lang_end}, lang={lang!r}")
 
         code_start = lang_end + 1 if lang_end > 0 else first + 3 + len(lang) + 1
 
@@ -59,7 +61,15 @@ def parse_single_md(md_file: str) -> list:
                 print(f"WARN: {rel_path} base64 decode failed: {e}")
                 continue
         else:
-            decoded_content = code.encode('utf-8')
+            # 如果 lang 不是 base64 但文件是图片，尝试用 base64 解码
+            # copy-paste 后 \r\n 会混入 lang 导致 'xml\r' != 'xml'，同样 base64\r != 'base64'
+            if rel_path.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico')):
+                try:
+                    decoded_content = base64.b64decode(code)
+                except Exception:
+                    decoded_content = code.encode('utf-8')
+            else:
+                decoded_content = code.encode('utf-8')
 
         rel_path = rel_path.replace('\\', '/')
 
@@ -130,6 +140,7 @@ def restore_xmind_from_single_md(md_file: str, xmind_output: str):
                     zi.external_attr = 0o644 << 16
                 else:
                     zi.compress_type = zipfile.ZIP_STORED
+                    zi.external_attr = 0o644 << 16
                 zf.writestr(zi, content)
 
     print(f"Generated: {xmind_output}")
